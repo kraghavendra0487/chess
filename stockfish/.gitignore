@@ -1,0 +1,23 @@
+# Binaries and executables
+*.exe
+stockfish
+stockfish-*
+*.dll
+*.so
+*.dylib
+
+# Build files
+*.o
+*.obj
+*.a
+*.lib
+*.d
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+
+# NNUE net files (usually downloaded/generated)
+*.nnue

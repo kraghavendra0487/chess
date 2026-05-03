@@ -1,0 +1,63 @@
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# OS related
+Thumbs.db
+db.lock
+desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Project specific
+backend/node_modules/
+frontend/node_modules/
+frontend/dist/
+stockfish/*.exe
+stockfish/src/*.o
+stockfish/src/stockfish
+
+# Backups and temporary files
+back_up/
+backup*/
+*.zip
+*.xlsx
+chess_trae_fixes_validated.md
+chess.html
