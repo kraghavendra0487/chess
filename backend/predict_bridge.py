@@ -17,12 +17,21 @@ def run_prediction(input_data):
         load_all_resources()
         
         results = {}
-        for p in ["pipeline1", "pipeline2", "pipeline3"]:
+        # Only keep the first model (pipeline1: XGBoost -> Random Forest)
+        for p in ["pipeline1"]:
             p3, p8 = predict(input_data, pipeline=p)
             results[p] = {
                 "class3": p3,
                 "class8": p8
             }
+        
+        # Commented out other models as requested
+        # for p in ["pipeline2", "pipeline3"]:
+        #     p3, p8 = predict(input_data, pipeline=p)
+        #     results[p] = {
+        #         "class3": p3,
+        #         "class8": p8
+        #     }
         
         # Also get the preprocessed features to show on UI
         from preprocess import preprocess_single_input

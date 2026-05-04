@@ -224,7 +224,9 @@ const LeftSidebar = ({
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           {mlOutputs && !mlOutputs.error ? (
             <div className="divide-y divide-slate-800">
-              {Object.entries(mlOutputs).map(([name, pred]) => {
+              {Object.entries(mlOutputs)
+                .filter(([name]) => name === 'pipeline1') // Keep only the first model
+                .map(([name, pred]) => {
                 const colors = getClass8ColorClasses(pred.class8);
                 return (
                   <div key={name} className="p-3 hover:bg-slate-800/30 transition-colors flex flex-col gap-2">
@@ -234,7 +236,7 @@ const LeftSidebar = ({
                           {name.replace('pipeline', 'Model ')}
                         </span>
                         <span className="text-[8px] font-medium text-slate-500 uppercase tracking-tighter truncate">
-                          {name === 'pipeline1' ? 'XGBoost → Random Forest' : 
+                          {name === 'pipeline1' ? 'XGBoost + Random Forest' : 
                            name === 'pipeline2' ? 'XGBoost → XGBoost' : 
                            'XGBoost → Gradient Boosting'}
                         </span>
@@ -254,6 +256,13 @@ const LeftSidebar = ({
                   </div>
                 );
               })}
+              {/* Other models are commented out as requested
+              {Object.entries(mlOutputs)
+                .filter(([name]) => name !== 'pipeline1')
+                .map(([name, pred]) => (
+                  // ... rendering for other models ...
+                ))
+              */}
             </div>
           ) : mlOutputs?.error ? (
             <div className="p-6 text-center text-rose-400 text-[10px] italic">
@@ -261,7 +270,7 @@ const LeftSidebar = ({
             </div>
           ) : mlLoading ? (
             <div className="p-4 space-y-4">
-              {[1, 2, 3].map(i => (
+              {[1].map(i => (
                 <div key={i} className="animate-pulse space-y-2">
                   <div className="flex justify-between">
                     <div className="h-2 w-12 bg-slate-800 rounded"></div>

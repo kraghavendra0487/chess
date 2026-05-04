@@ -7,7 +7,7 @@ import os
 # Dynamic path to Stockfish executable
 STOCKFISH_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'stockfish', 'stockfish-windows-x86-64-avx2.exe'))
 
-def get_stockfish_lines(fen, depth):
+def get_stockfish_lines(fen, movetime=200):
     if not os.path.exists(STOCKFISH_PATH):
         return {"error": "Stockfish not found", "path": STOCKFISH_PATH}
 
@@ -26,7 +26,7 @@ def get_stockfish_lines(fen, depth):
             'ucinewgame',
             f'position fen {fen}',
             'setoption name MultiPV value 3',
-            f'go depth {depth}'
+            f'go movetime {movetime}'
         ]
 
         for command in commands:
@@ -61,9 +61,9 @@ def main():
         sys.exit(1)
     
     fen = sys.argv[1]
-    depth = sys.argv[2] if len(sys.argv) > 2 else '12'
+    movetime = sys.argv[2] if len(sys.argv) > 2 else 200
 
-    result = get_stockfish_lines(fen, depth)
+    result = get_stockfish_lines(fen, movetime)
     
     print(json.dumps(result))
     sys.exit(0)

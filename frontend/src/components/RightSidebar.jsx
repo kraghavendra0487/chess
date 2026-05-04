@@ -328,9 +328,9 @@ const RightSidebar = ({
     // 1. Engine classification
     const engineClass = linesWithPlayedStanding.find(l => l.isPlayed)?.moveClass;
     
-    // 2. ML classifications
-    const mlClasses = mlOutputs && !mlOutputs.error 
-      ? Object.values(mlOutputs).map(v => v.class8).filter(Boolean)
+    // 2. ML classifications - Only use Model 1 (pipeline1) for consistency
+    const mlClasses = mlOutputs && !mlOutputs.error && mlOutputs.pipeline1
+      ? [mlOutputs.pipeline1.class8]
       : [];
 
     const allCandidates = [engineClass, ...mlClasses].filter(Boolean);
@@ -371,7 +371,7 @@ const RightSidebar = ({
           <h2 className="font-bold text-[10px] tracking-widest uppercase flex items-center gap-2">
             <i className="fas fa-microchip"></i> Stockfish 18
           </h2>
-          <span className="text-[9px] font-bold opacity-70">Depth {depth > 0 ? depth : '...'}</span>
+          <span className="text-[9px] font-bold opacity-70">200ms</span>
         </div>
         <div
           className={

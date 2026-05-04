@@ -38,7 +38,7 @@ function runEngineDirect({ fen, depth, movetime, multipv, searchmoves, moves }) 
     const lines = [];
     let stdoutBuffer = '';
 
-    const timerMs = movetime ? Math.max(3000, parseInt(movetime, 10) + 3000) : Math.max(15000, (parseInt(depth || 16, 10) * 1000));
+    const timerMs = movetime ? Math.max(3000, parseInt(movetime, 10) + 3000) : Math.max(15000, (parseInt(depth || 20, 10) * 1000));
     const timer = setTimeout(() => {
       cleanup(new Error('Engine timeout after ' + timerMs + 'ms'));
     }, timerMs);
@@ -102,7 +102,9 @@ function runEngineDirect({ fen, depth, movetime, multipv, searchmoves, moves }) 
       send(`position fen ${fen}`);
     }
     
-    const goCmd = `go depth ${depth || 16} ${movetime ? 'movetime ' + movetime : ''} ${searchmoves ? 'searchmoves ' + searchmoves : ''}`;
+    const goCmd = movetime 
+      ? `go movetime ${movetime} ${searchmoves ? 'searchmoves ' + searchmoves : ''}`
+      : `go depth ${depth || 20} ${searchmoves ? 'searchmoves ' + searchmoves : ''}`;
     send(goCmd);
   });
 }
@@ -229,7 +231,7 @@ function scoreToWhiteWinProbability(score, turnForPosition) {
   return 0;
 }
 
-async function computeFirstMoveScores({ previousFen, lines, depth, movetime }) {
+async function computeFirstMoveScores({ previousFen, lines, movetime }) {
   if (!previousFen || !Array.isArray(lines) || lines.length === 0) return {};
 
   const firstMoves = [...new Set(
@@ -241,9 +243,9 @@ async function computeFirstMoveScores({ previousFen, lines, depth, movetime }) {
   const entries = await Promise.all(firstMoves.map(async (mv) => {
     try {
       const result = await runEngineWithFallbacks(
-        { fen: previousFen, moves: mv, depth, movetime, multipv: 1 },
+        { fen: previousFen, moves: mv, movetime, multipv: 1 },
         [
-          { fen: previousFen, moves: mv, depth: Math.max(10, depth - 2), movetime, multipv: 1 },
+          { fen: previousFen, moves: mv, movetime: Math.max(100, movetime), multipv: 1 },
           { fen: previousFen, moves: mv, depth: 10, movetime: 1500, multipv: 1 },
         ]
       );
@@ -271,21 +273,20 @@ app.post('/api/analyze', async (req, res) => {
   
   try {
     const requestedMultiPv = Math.max(1, Math.min(10, parseInt(multipv || 3, 10)));
-    const normalizedDepth = parseInt(depth || 16, 10);
-    const safeDepth = Number.isFinite(normalizedDepth) ? normalizedDepth : 16;
+    const safeMoveTime = movetime || 200;
 
     const [currentSettled, previousSettled] = await Promise.allSettled([
       runEngineWithFallbacks(
-        { fen: currentFen, depth: safeDepth, movetime },
+        { fen: currentFen, movetime: safeMoveTime },
         [
-          { fen: currentFen, depth: Math.max(10, safeDepth - 2), movetime, multipv: 1 },
+          { fen: currentFen, movetime: Math.max(100, safeMoveTime), multipv: 1 },
           { fen: currentFen, depth: 10, movetime: 1500, multipv: 1 },
         ]
       ),
       runEngineWithFallbacks(
-        { fen: previousFen, depth: safeDepth, movetime, multipv: requestedMultiPv },
+        { fen: previousFen, movetime: safeMoveTime, multipv: requestedMultiPv },
         [
-          { fen: previousFen, depth: Math.max(10, safeDepth - 2), movetime, multipv: Math.min(3, requestedMultiPv) },
+          { fen: previousFen, movetime: Math.max(100, safeMoveTime), multipv: Math.min(3, requestedMultiPv) },
           { fen: previousFen, depth: 10, movetime: 1500, multipv: 1 },
         ]
       ),
@@ -303,8 +304,7 @@ app.post('/api/analyze', async (req, res) => {
     const firstMoveScoreMap = await computeFirstMoveScores({
       previousFen,
       lines: baseLines,
-      depth: safeDepth,
-      movetime,
+      movetime: safeMoveTime,
     });
     const responseLines = baseLines.map((line) => {
       const firstMove = String(line?.pv || '').trim().split(/\s+/)[0] || null;
