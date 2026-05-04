@@ -352,10 +352,18 @@ def analyze_fen_full(fen):
     }
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print(json.dumps({"error": "No FEN provided"}))
-        sys.exit(1)
-    
-    fen = sys.argv[1]
-    analysis = analyze_fen_full(fen)
-    print(json.dumps(analysis, indent=2))
+    # Persistent loop mode
+    for line in sys.stdin:
+        if not line.strip(): continue
+        try:
+            req = json.loads(line)
+            fen = req.get("fen")
+            if not fen:
+                print(json.dumps({"error": "No FEN provided"}))
+                continue
+            analysis = analyze_fen_full(fen)
+            print(json.dumps(analysis))
+            sys.stdout.flush()
+        except Exception as e:
+            print(json.dumps({"error": str(e)}))
+            sys.stdout.flush()

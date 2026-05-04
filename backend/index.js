@@ -185,18 +185,22 @@ class PersistentStockfish {
 }
 
 const sfEngine = new PersistentStockfish();
+const sfBackgroundEngine = new PersistentStockfish(); // Second engine for background tasks
 
-function runEngineDirect(opts) {
-  return sfEngine.runAnalysis(opts);
+const analysisCache = new Map();
+
+function runEngineDirect(opts, useBackground = false) {
+  const engine = useBackground ? sfBackgroundEngine : sfEngine;
+  return engine.runAnalysis(opts);
 }
 
-async function runEngineWithFallbacks(primaryOpts, fallbackOptsList = []) {
+async function runEngineWithFallbacks(primaryOpts, fallbackOptsList = [], useBackground = false) {
   const attempts = [primaryOpts, ...fallbackOptsList].filter(Boolean);
   let lastErr = null;
 
   for (const opts of attempts) {
     try {
-      return await runEngineDirect(opts);
+      return await runEngineDirect(opts, useBackground);
     } catch (err) {
       lastErr = err;
       console.warn('[ANALYZE][RETRY]', {
@@ -335,7 +339,8 @@ async function computeFirstMoveScores({ previousFen, lines }) {
           [
             { fen: previousFen, moves: mv, movetime: Math.max(50, Math.floor(movetime * 0.5)), multipv: 1 },
             { fen: previousFen, moves: mv, depth: 10, movetime: 1500, multipv: 1 },
-          ]
+          ],
+          true // useBackground = true
         );
         return [mv, result?.score || null];
       } catch (e) {
@@ -358,6 +363,14 @@ app.post('/api/analyze', async (req, res) => {
     res.status(400).json({ error: 'Both current_fen and previous_fen are required' });
     return;
   }
+
+  // 1. Check Cache first
+  const cacheKey = `${currentFen}|${previousFen}|${multipv}`;
+  if (analysisCache.has(cacheKey)) {
+    console.log('[CACHE] Hit:', cacheKey);
+    return res.json(analysisCache.get(cacheKey));
+  }
+
   console.log('[ANALYZE]', { currentFen, previousFen, depth, movetime, multipv });
   
   try {
@@ -430,6 +443,14 @@ app.post('/api/analyze', async (req, res) => {
       warning: warnings.length > 0 ? warnings : undefined,
     };
 
+    // Store in cache before returning
+    analysisCache.set(cacheKey, response);
+    // Limit cache size to 100 entries
+    if (analysisCache.size > 100) {
+      const firstKey = analysisCache.keys().next().value;
+      analysisCache.delete(firstKey);
+    }
+
     console.log('[ANALYZE][OK]', response);
     res.json(response);
   } catch (e) {
@@ -501,68 +522,61 @@ app.post('/api/behavior/analyze', async (req, res) => {
   }
 });
 
-app.post('/api/ml/predict', async (req, res) => {
-  const inputData = req.body || {};
+// --- PERSISTENT PREDICT PROCESS ---
+let predictProcess = null;
+let predictRequests = [];
+
+function startPredict(pythonCmd = workingPython) {
   const scriptPath = path.join(__dirname, 'predict_bridge.py');
+  console.log(`[PREDICT] Starting with ${pythonCmd}...`);
+  predictProcess = spawn(pythonCmd, [scriptPath]);
   
-  const run = (cmd, cmdArgs, inputJson) => {
-    return new Promise((resolve, reject) => {
-      const child = spawn(cmd, cmdArgs);
-      let stdout = '';
-      let stderr = '';
-      
-      if (inputJson) {
-        child.stdin.write(inputJson);
-        child.stdin.end();
-      }
+  predictProcess.on('error', (err) => {
+    console.error('[PREDICT] Spawn error:', err.message);
+    if (pythonCmd === 'python') startPredict('py');
+    else if (pythonCmd === 'py') startPredict('python3');
+  });
 
-      child.stdout.on('data', (data) => {
-        stdout += data.toString();
-      });
-
-      child.stderr.on('data', (data) => {
-        stderr += data.toString();
-      });
-
-      child.on('close', (code) => {
-        if (code !== 0) {
-          console.error('[ML-PREDICT]', 'process exited with code', code, stderr);
-          reject(new Error(`Process exited with code ${code}: ${stderr}`));
-          return;
-        }
-        try {
-          const data = JSON.parse(stdout.trim());
-          resolve(data);
-        } catch (e) {
-          console.error('[ML-PREDICT]', 'invalid json', stdout);
-          reject(new Error('Invalid JSON from ML Bridge'));
-        }
-      });
-
-      child.on('error', (err) => {
-        console.error('[ML-PREDICT]', 'spawn error', err);
-        reject(err);
-      });
-    });
-  };
-
-  try {
-    let result;
-    const inputJson = JSON.stringify(inputData);
-    try {
-      result = await run(workingPython, [scriptPath], inputJson);
-    } catch (e) {
-      const fallback = workingPython === 'python' ? 'py' : 'python';
-      const fallbackArgs = workingPython === 'python' ? ['-3', scriptPath] : [scriptPath];
+  predictProcess.stdout.on('data', (data) => {
+    const lines = data.toString().split('\n');
+    for (const line of lines) {
+      if (!line.trim()) continue;
       try {
-        result = await run(fallback, fallbackArgs, inputJson);
-        workingPython = fallback; // Update successful command
-      } catch (e2) {
-        // Try python3 as last resort
-        result = await run('python3', [scriptPath], inputJson);
-        workingPython = 'python3';
+        const result = JSON.parse(line);
+        if (predictRequests.length > 0) {
+          const { resolve } = predictRequests.shift();
+          resolve(result);
+        }
+      } catch (e) {
+        console.error('[PREDICT] JSON parse error:', line);
       }
     }
+  });
+
+  predictProcess.on('close', (code) => {
+    console.warn('[PREDICT] Process closed with code', code);
+    setTimeout(startPredict, 5000);
+  });
+}
+
+startPredict();
+
+app.post('/api/ml/predict', async (req, res) => {
+  const inputData = req.body || {};
+  
+  try {
+    const result = await new Promise((resolve, reject) => {
+      predictRequests.push({ resolve, reject });
+      predictProcess.stdin.write(JSON.stringify(inputData) + '\n');
+      
+      setTimeout(() => {
+        const idx = predictRequests.findIndex(r => r.resolve === resolve);
+        if (idx !== -1) {
+          predictRequests.splice(idx, 1);
+          reject(new Error('Predict Timeout'));
+        }
+      }, 30000);
+    });
     res.json(result);
   } catch (e) {
     console.error('[ML-PREDICT][ERR]', e.message);
@@ -570,42 +584,64 @@ app.post('/api/ml/predict', async (req, res) => {
   }
 });
 
+// --- PERSISTENT PIPELINE PROCESS ---
+let pipelineProcess = null;
+let pipelineRequests = [];
+
+function startPipeline(pythonCmd = workingPython) {
+  const scriptPath = path.join(__dirname, 'chess_pipeline.py');
+  console.log(`[PIPELINE] Starting with ${pythonCmd}...`);
+  pipelineProcess = spawn(pythonCmd, [scriptPath]);
+  
+  pipelineProcess.on('error', (err) => {
+    console.error('[PIPELINE] Spawn error:', err.message);
+    if (pythonCmd === 'python') startPipeline('py');
+    else if (pythonCmd === 'py') startPipeline('python3');
+  });
+
+  pipelineProcess.stdout.on('data', (data) => {
+    const lines = data.toString().split('\n');
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const result = JSON.parse(line);
+        if (pipelineRequests.length > 0) {
+          const { resolve } = pipelineRequests.shift();
+          resolve(result);
+        }
+      } catch (e) {
+        console.error('[PIPELINE] JSON parse error:', line);
+      }
+    }
+  });
+
+  pipelineProcess.on('close', (code) => {
+    console.warn('[PIPELINE] Process closed with code', code);
+    setTimeout(startPipeline, 5000);
+  });
+}
+
+startPipeline();
+
 app.post('/ai/pipeline', async (req, res) => {
   const { fen } = req.body || {};
   if (!fen) {
     return res.status(400).json({ error: 'fen is required' });
   }
 
-  const scriptPath = path.join(__dirname, 'chess_pipeline.py');
-  
-  const run = (cmd, cmdArgs) => {
-    return new Promise((resolve, reject) => {
-      execFile(cmd, cmdArgs, { timeout: 30000 }, (error, stdout, stderr) => {
-        if (error) {
-          console.error('[PIPELINE]', 'exec error', error.message, stderr);
-          reject(error);
-          return;
-        }
-        try {
-          const data = JSON.parse(stdout.trim());
-          resolve(data);
-        } catch (e) {
-          console.error('[PIPELINE]', 'invalid json', stdout);
-          reject(new Error('Invalid JSON from Pipeline'));
-        }
-      });
-    });
-  };
-
   try {
-    let result;
-    try {
-      result = await run(workingPython, [scriptPath, fen]);
-    } catch (e) {
-      const fallback = workingPython === 'python' ? 'py' : 'python';
-      const fallbackArgs = workingPython === 'python' ? ['-3', scriptPath, fen] : [scriptPath, fen];
-      result = await run(fallback, fallbackArgs);
-    }
+    const result = await new Promise((resolve, reject) => {
+      pipelineRequests.push({ resolve, reject });
+      pipelineProcess.stdin.write(JSON.stringify({ fen }) + '\n');
+      
+      setTimeout(() => {
+        const idx = pipelineRequests.findIndex(r => r.resolve === resolve);
+        if (idx !== -1) {
+          pipelineRequests.splice(idx, 1);
+          reject(new Error('Pipeline Timeout'));
+        }
+      }, 30000);
+    });
     res.json(result);
   } catch (e) {
     console.error('[PIPELINE][ERR]', e.message);

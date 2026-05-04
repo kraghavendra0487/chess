@@ -53,15 +53,14 @@ def run_prediction(input_data):
         }
 
 if __name__ == "__main__":
-    try:
-        # Read from stdin instead of sys.argv to avoid shell escaping issues
-        input_json = sys.stdin.read()
-        if not input_json:
-            print(json.dumps({"error": "No input data provided via stdin"}))
-            sys.exit(1)
-            
-        data = json.loads(input_json)
-        output = run_prediction(data)
-        print(json.dumps(output))
-    except Exception as e:
-        print(json.dumps({"error": str(e)}))
+    # Persistent loop mode
+    for line in sys.stdin:
+        if not line.strip(): continue
+        try:
+            data = json.loads(line)
+            output = run_prediction(data)
+            print(json.dumps(output))
+            sys.stdout.flush()
+        except Exception as e:
+            print(json.dumps({"error": str(e)}))
+            sys.stdout.flush()
