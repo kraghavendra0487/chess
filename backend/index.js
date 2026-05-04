@@ -28,85 +28,166 @@ app.get('/api/hello', (req, res) => {
 
 let workingPython = 'python';
 
-function runEngineDirect({ fen, depth, movetime, multipv, searchmoves, moves }) {
-  return new Promise((resolve, reject) => {
-    const exePath = path.join(__dirname, '..', 'stockfish', 'stockfish-windows-x86-64-avx2.exe');
-    if (!fs.existsSync(exePath)) {
-      return reject(new Error(`Stockfish not found at ${exePath}`));
-    }
-    const proc = spawn(exePath);
-    const lines = [];
-    let stdoutBuffer = '';
+class PersistentStockfish {
+  constructor() {
+    this.exePath = path.join(__dirname, '..', 'stockfish', 'stockfish-windows-x86-64-avx2.exe');
+    this.proc = null;
+    this.queue = [];
+    this.isProcessing = false;
+    this.stdoutBuffer = '';
+    this.currentTask = null;
+    this.initPromise = null;
+  }
 
-    const timerMs = movetime ? Math.max(3000, parseInt(movetime, 10) + 3000) : Math.max(15000, (parseInt(depth || 20, 10) * 1000));
-    const timer = setTimeout(() => {
-      cleanup(new Error('Engine timeout after ' + timerMs + 'ms'));
-    }, timerMs);
+  async ensureInitialized() {
+    if (this.proc && !this.proc.killed) return;
+    if (this.initPromise) return this.initPromise;
 
-    const cleanup = (res) => {
-      clearTimeout(timer);
-      if (proc.connected || proc.pid) {
-        try { proc.kill(); } catch (e) {}
+    this.initPromise = new Promise((resolve, reject) => {
+      if (!fs.existsSync(this.exePath)) {
+        return reject(new Error(`Stockfish not found at ${this.exePath}`));
       }
-      if (res instanceof Error) reject(res);
-      else resolve(res);
-    };
 
-    proc.stdout.on('data', (data) => {
-      stdoutBuffer += data.toString();
-      const chunks = stdoutBuffer.split(/\r?\n/);
-      stdoutBuffer = chunks.pop(); // Last partial line remains in buffer
+      console.log('[SF] Starting persistent engine...');
+      this.proc = spawn(this.exePath);
+      this.proc.stdin.setEncoding('utf-8');
 
-      for (const line of chunks) {
-        if (!line) continue;
-        lines.push(line);
-        console.log('[SF]', line);
-        
-        if (line.startsWith('bestmove')) {
-          try {
-            const result = parseEngineLines(lines);
-            console.log('[SF] Parsed Result:', JSON.stringify(result));
-            cleanup(result);
-          } catch (e) {
-            cleanup(e);
-          }
-          return;
+      this.proc.stdout.on('data', (data) => {
+        this.stdoutBuffer += data.toString();
+        this.processBuffer();
+      });
+
+      this.proc.on('error', (err) => {
+        console.error('[SF PERSISTENT ERROR]', err);
+        if (this.currentTask) {
+          this.currentTask.reject(err);
+          this.cleanupTask();
         }
-      }
+      });
+
+      this.proc.on('exit', (code) => {
+        console.log(`[SF] Persistent engine exited with code ${code}`);
+        this.proc = null;
+        this.initPromise = null;
+        if (this.currentTask) {
+          this.currentTask.reject(new Error('Engine exited unexpectedly'));
+          this.cleanupTask();
+        }
+      });
+
+      // UCI init
+      this.send('uci');
+      this.send('isready');
+      
+      const checkReady = (data) => {
+        if (data.toString().includes('readyok')) {
+          this.proc.stdout.removeListener('data', checkReady);
+          console.log('[SF] Persistent engine ready');
+          resolve();
+        }
+      };
+      this.proc.stdout.on('data', checkReady);
     });
 
-    proc.on('error', (err) => {
-      console.error('[SF ERROR]', err);
-      cleanup(err);
-    });
+    return this.initPromise;
+  }
 
-    const send = (cmd) => {
-      if (proc.stdin.writable) {
-        proc.stdin.write(cmd + '\n');
+  send(cmd) {
+    if (this.proc && this.proc.stdin.writable) {
+      this.proc.stdin.write(cmd + '\n');
+    }
+  }
+
+  processBuffer() {
+    if (!this.currentTask) return;
+
+    const lines = this.stdoutBuffer.split(/\r?\n/);
+    this.stdoutBuffer = lines.pop(); // Keep last partial line
+
+    for (const line of lines) {
+      if (!line) continue;
+      this.currentTask.lines.push(line);
+      console.log('[SF PERSISTENT]', line);
+
+      if (line.startsWith('bestmove')) {
+        try {
+          const result = parseEngineLines(this.currentTask.lines);
+          this.currentTask.resolve(result);
+        } catch (e) {
+          this.currentTask.reject(e);
+        }
+        this.cleanupTask();
+        this.processQueue();
+        return;
       }
-    };
+    }
+  }
 
-    // UCI protocol: send commands one by one
-    send('uci');
-    send('isready');
-    send('ucinewgame');
-    send('isready'); // Extra isready after ucinewgame
-    
-    if (parseInt(multipv || 0, 10) > 1) {
-      send(`setoption name MultiPV value ${parseInt(multipv, 10)}`);
+  cleanupTask() {
+    if (this.currentTask?.timer) clearTimeout(this.currentTask.timer);
+    this.currentTask = null;
+    this.isProcessing = false;
+  }
+
+  async runAnalysis(opts) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ opts, resolve, reject, lines: [] });
+      this.processQueue();
+    });
+  }
+
+  async processQueue() {
+    if (this.isProcessing || this.queue.length === 0) return;
+
+    this.isProcessing = true;
+
+    try {
+      await this.ensureInitialized();
+      this.currentTask = this.queue.shift();
+      
+      const { fen, depth, movetime, multipv, searchmoves, moves } = this.currentTask.opts;
+      
+      this.send('ucinewgame');
+      this.send('isready');
+
+      if (parseInt(multipv || 0, 10) > 1) {
+        this.send(`setoption name MultiPV value ${parseInt(multipv, 10)}`);
+      } else {
+        this.send('setoption name MultiPV value 1');
+      }
+
+      if (moves) {
+        this.send(`position startpos moves ${moves}`);
+      } else if (fen) {
+        this.send(`position fen ${fen}`);
+      }
+
+      const goCmd = movetime 
+        ? `go movetime ${movetime} ${searchmoves ? 'searchmoves ' + searchmoves : ''}`
+        : `go depth ${depth || 20} ${searchmoves ? 'searchmoves ' + searchmoves : ''}`;
+      
+      const timerMs = movetime ? Math.max(3000, parseInt(movetime, 10) + 3000) : Math.max(15000, (parseInt(depth || 20, 10) * 1000));
+      this.currentTask.timer = setTimeout(() => {
+        if (this.currentTask) {
+          this.currentTask.reject(new Error('Engine timeout after ' + timerMs + 'ms'));
+          this.cleanupTask();
+          this.processQueue();
+        }
+      }, timerMs);
+
+      this.send(goCmd);
+    } catch (e) {
+      this.currentTask.reject(e);
+      this.cleanupTask();
+      this.processQueue();
     }
-    
-    if (moves) {
-      send(`position startpos moves ${moves}`);
-    } else if (fen) {
-      send(`position fen ${fen}`);
-    }
-    
-    const goCmd = movetime 
-      ? `go movetime ${movetime} ${searchmoves ? 'searchmoves ' + searchmoves : ''}`
-      : `go depth ${depth || 20} ${searchmoves ? 'searchmoves ' + searchmoves : ''}`;
-    send(goCmd);
-  });
+  }
+}
+
+const sfEngine = new PersistentStockfish();
+
+function runEngineDirect(opts) {
+  return sfEngine.runAnalysis(opts);
 }
 
 async function runEngineWithFallbacks(primaryOpts, fallbackOptsList = []) {
@@ -231,30 +312,38 @@ function scoreToWhiteWinProbability(score, turnForPosition) {
   return 0;
 }
 
-async function computeFirstMoveScores({ previousFen, lines, movetime }) {
+async function computeFirstMoveScores({ previousFen, lines }) {
   if (!previousFen || !Array.isArray(lines) || lines.length === 0) return {};
 
-  const firstMoves = [...new Set(
-    lines
-      .map((line) => String(line?.pv || '').trim().split(/\s+/)[0])
-      .filter(Boolean)
-  )];
+  const firstMoves = [
+    ...new Set(
+      lines
+        .map((line) => String(line?.pv || '').trim().split(/\s+/)[0])
+        .filter(Boolean)
+    ),
+  ];
 
-  const entries = await Promise.all(firstMoves.map(async (mv) => {
-    try {
-      const result = await runEngineWithFallbacks(
-        { fen: previousFen, moves: mv, movetime, multipv: 1 },
-        [
-          { fen: previousFen, moves: mv, movetime: Math.max(100, movetime), multipv: 1 },
-          { fen: previousFen, moves: mv, depth: 10, movetime: 1500, multipv: 1 },
-        ]
-      );
-      return [mv, result?.score || null];
-    } catch (e) {
-      console.warn('[ANALYZE][FIRSTMOVE][RETRY-FAILED]', { move: mv, error: e?.message || String(e) });
-      return [mv, null];
-    }
-  }));
+  // Specific times for top 3 moves as requested: 200ms, 150ms, 100ms.
+  const tieredTimes = [200, 150, 100];
+
+  const entries = await Promise.all(
+    firstMoves.map(async (mv, index) => {
+      const movetime = tieredTimes[index] || 100; // Default to 100ms for moves beyond top 3
+      try {
+        const result = await runEngineWithFallbacks(
+          { fen: previousFen, moves: mv, movetime, multipv: 1 },
+          [
+            { fen: previousFen, moves: mv, movetime: Math.max(50, Math.floor(movetime * 0.5)), multipv: 1 },
+            { fen: previousFen, moves: mv, depth: 10, movetime: 1500, multipv: 1 },
+          ]
+        );
+        return [mv, result?.score || null];
+      } catch (e) {
+        console.warn('[ANALYZE][FIRSTMOVE][RETRY-FAILED]', { move: mv, error: e?.message || String(e) });
+        return [mv, null];
+      }
+    })
+  );
 
   return Object.fromEntries(entries);
 }
@@ -273,20 +362,23 @@ app.post('/api/analyze', async (req, res) => {
   
   try {
     const requestedMultiPv = Math.max(1, Math.min(10, parseInt(multipv || 3, 10)));
-    const safeMoveTime = movetime || 200;
+    
+    // Scan time is 80ms, Played move time is 200ms
+    const scanTime = 80;
+    const playedMoveTime = 200;
 
     const [currentSettled, previousSettled] = await Promise.allSettled([
       runEngineWithFallbacks(
-        { fen: currentFen, movetime: safeMoveTime },
+        { fen: currentFen, movetime: playedMoveTime },
         [
-          { fen: currentFen, movetime: Math.max(100, safeMoveTime), multipv: 1 },
+          { fen: currentFen, movetime: 100, multipv: 1 },
           { fen: currentFen, depth: 10, movetime: 1500, multipv: 1 },
         ]
       ),
       runEngineWithFallbacks(
-        { fen: previousFen, movetime: safeMoveTime, multipv: requestedMultiPv },
+        { fen: previousFen, movetime: scanTime, multipv: requestedMultiPv },
         [
-          { fen: previousFen, movetime: Math.max(100, safeMoveTime), multipv: Math.min(3, requestedMultiPv) },
+          { fen: previousFen, movetime: 50, multipv: Math.min(3, requestedMultiPv) },
           { fen: previousFen, depth: 10, movetime: 1500, multipv: 1 },
         ]
       ),
@@ -304,7 +396,6 @@ app.post('/api/analyze', async (req, res) => {
     const firstMoveScoreMap = await computeFirstMoveScores({
       previousFen,
       lines: baseLines,
-      movetime: safeMoveTime,
     });
     const responseLines = baseLines.map((line) => {
       const firstMove = String(line?.pv || '').trim().split(/\s+/)[0] || null;
