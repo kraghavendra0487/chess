@@ -1,0 +1,131 @@
+-- Local SQLite schema for saved analysis sessions and per-move export rows
+-- (aligned with frontend Excel export in Analyze.jsx)
+
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS analysis_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  input_filename TEXT,
+  input_source TEXT,
+  pgn_text TEXT,
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'analyzing', 'completed', 'failed')),
+  progress_current INTEGER NOT NULL DEFAULT 0,
+  progress_total INTEGER NOT NULL DEFAULT 0,
+  error_message TEXT,
+  notes TEXT,
+  pgn_metadata TEXT
+);
+
+CREATE TABLE IF NOT EXISTS analysis_move_rows (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER NOT NULL,
+  ply_index INTEGER NOT NULL,
+  move_number TEXT,
+  turn TEXT,
+  san_move TEXT,
+  uci_move TEXT,
+  clock TEXT,
+  played_move_classification TEXT,
+  played_move_standing TEXT,
+  played_move_eval TEXT,
+  eval_before_move TEXT,
+  move_quality_delta TEXT,
+  best_line_delta TEXT,
+  win_pct_white TEXT,
+  fen_before_move TEXT,
+  fen_after_move TEXT,
+  legal_moves_at_move TEXT,
+  best_move_alternatives TEXT,
+  captures TEXT,
+  game_phase TEXT,
+  board_density TEXT,
+  white_space_dominance TEXT,
+  black_space_dominance TEXT,
+  white_material TEXT,
+  black_material TEXT,
+  material_advantage TEXT,
+  simplification TEXT,
+  hanging_pieces TEXT,
+  loose_pieces TEXT,
+  white_king_attack_intensity TEXT,
+  white_king_exposure TEXT,
+  black_king_attack_intensity TEXT,
+  black_king_exposure TEXT,
+  white_king_mobility TEXT,
+  black_king_mobility TEXT,
+  white_pawn_islands TEXT,
+  white_doubled_pawns TEXT,
+  black_pawn_islands TEXT,
+  black_doubled_pawns TEXT,
+  white_avg_mobility TEXT,
+  black_avg_mobility TEXT,
+  white_position_freedom TEXT,
+  black_position_freedom TEXT,
+  white_space_controlled TEXT,
+  black_space_controlled TEXT,
+  space_ratio TEXT,
+  pins TEXT,
+  forks TEXT,
+  endgame_proximity TEXT,
+  white_practical_risk TEXT,
+  black_practical_risk TEXT,
+  overall_evaluation TEXT,
+  winning_plan TEXT,
+  generated_commentary TEXT,
+  flan_t5_output TEXT,
+  line_1_eval TEXT,
+  line_1_classification TEXT,
+  line_1_sequence TEXT,
+  line_2_eval TEXT,
+  line_2_classification TEXT,
+  line_2_sequence TEXT,
+  line_3_eval TEXT,
+  line_3_classification TEXT,
+  line_3_sequence TEXT,
+  line_4_eval TEXT,
+  line_4_classification TEXT,
+  line_4_sequence TEXT,
+  line_5_eval TEXT,
+  line_5_classification TEXT,
+  line_5_sequence TEXT,
+  line_6_eval TEXT,
+  line_6_classification TEXT,
+  line_6_sequence TEXT,
+  line_7_eval TEXT,
+  line_7_classification TEXT,
+  line_7_sequence TEXT,
+  line_8_eval TEXT,
+  line_8_classification TEXT,
+  line_8_sequence TEXT,
+  line_9_eval TEXT,
+  line_9_classification TEXT,
+  line_9_sequence TEXT,
+  line_10_eval TEXT,
+  line_10_classification TEXT,
+  line_10_sequence TEXT,
+  ml_inputs_json TEXT,
+  ml_predictions_json TEXT,
+  stockfish_json TEXT,
+  pipeline_json TEXT,
+  FOREIGN KEY (session_id) REFERENCES analysis_sessions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_analysis_move_rows_session
+  ON analysis_move_rows(session_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_analysis_move_rows_session_ply
+  ON analysis_move_rows(session_id, ply_index);
+
+-- User-defined Book Moves
+CREATE TABLE IF NOT EXISTS user_book_moves (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  fen TEXT NOT NULL,
+  move_uci TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(fen, move_uci)
+);
+
+
