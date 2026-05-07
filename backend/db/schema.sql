@@ -120,12 +120,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_analysis_move_rows_session_ply
   ON analysis_move_rows(session_id, ply_index);
 
 -- User-defined Book Moves
-CREATE TABLE IF NOT EXISTS user_book_moves (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  fen TEXT NOT NULL,
-  move_uci TEXT NOT NULL,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(fen, move_uci)
+CREATE TABLE IF NOT EXISTS behavioral_stories (
+  id INTEGER PRIMARY KEY,
+  title TEXT NOT NULL,
+  moral TEXT NOT NULL,
+  patience INTEGER,
+  consistency INTEGER,
+  adaptability INTEGER,
+  focus INTEGER,
+  mental_stability INTEGER,
+  time_management INTEGER,
+  creativity INTEGER,
+  aggression INTEGER
 );
 
 

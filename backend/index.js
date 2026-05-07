@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { execFile } = require('child_process');
@@ -459,8 +460,6 @@ app.post('/api/analyze', async (req, res) => {
   }
 });
 
-mountAnalysisHistoryRoutes(app);
-
 app.post('/api/behavior/analyze', async (req, res) => {
   const { moves } = req.body || {};
   if (!Array.isArray(moves)) {
@@ -521,6 +520,53 @@ app.post('/api/behavior/analyze', async (req, res) => {
     res.status(500).json({ error: 'Behavior analysis failed', detail: e.message });
   }
 });
+
+app.post('/api/behavior/stories', async (req, res) => {
+  const scores = req.body || {};
+  
+  // Weights for different behavioral dimensions (all equal for now)
+  const dimensions = [
+    'Patience', 'Consistency', 'Adaptability', 'Focus', 
+    'MentalStability', 'TimeManagement', 'Creativity', 'Aggression'
+  ];
+
+  try {
+    const stories = db.prepare(`SELECT * FROM behavioral_stories`).all();
+    
+    if (stories.length === 0) {
+      return res.status(404).json({ error: 'No stories found in database' });
+    }
+
+    // Calculate Euclidean distance for each story
+    const ranked = stories.map(story => {
+      let distanceSq = 0;
+      dimensions.forEach(dim => {
+        const userVal = parseFloat(scores[dim] || 0);
+        // Map dimension names to DB column names (e.g., MentalStability -> mental_stability)
+        const dbCol = dim.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`).replace(/^_/, '');
+        const dbVal = parseFloat(story[dbCol] || 0);
+        distanceSq += Math.pow(userVal - dbVal, 2);
+      });
+      return { ...story, distance: Math.sqrt(distanceSq) };
+    });
+
+    // Sort by distance (ascending) and take the top 3
+    ranked.sort((a, b) => a.distance - b.distance);
+    const topStories = ranked.slice(0, 3).map(s => ({
+      title: s.title,
+      moral: s.moral
+    }));
+
+    res.json({
+      stories: topStories
+    });
+  } catch (err) {
+    console.error('[STORIES-API-ERR]', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+mountAnalysisHistoryRoutes(app);
 
 // --- PERSISTENT PREDICT PROCESS ---
 let predictProcess = null;

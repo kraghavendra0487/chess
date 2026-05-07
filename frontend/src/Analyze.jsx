@@ -500,12 +500,16 @@ const AnalyzePage = () => {
 
     const multiPVDetails = [];
     const lineClassifications = getLineClassificationLabels({ lines }, lineTurn);
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 10; i++) {
       const line = lines[i];
       if (line) {
         const lScore = formatLineScoreForExport(line, lineTurn);
         const cls = lineClassifications[i];
-        multiPVDetails.push(lScore, cls != null && cls !== '' ? cls : 'N/A', line?.pv ? String(line.pv) : 'N/A');
+        multiPVDetails.push(
+          lScore, 
+          cls != null && cls !== '' ? cls : 'N/A', 
+          line?.pv ? String(line.pv) : 'N/A'
+        );
       } else {
         multiPVDetails.push('N/A', 'N/A', 'N/A');
       }
@@ -586,11 +590,13 @@ const AnalyzePage = () => {
 
   const persistedPliesRef = useRef(new Set());
   const persistInFlightRef = useRef(new Set());
+  const lastPersistedDataRef = useRef({}); // Store hash or stringified payload to detect changes
   const sessionCompletedPatchedRef = useRef(false);
 
   useEffect(() => {
     persistedPliesRef.current.clear();
     persistInFlightRef.current.clear();
+    lastPersistedDataRef.current = {};
     sessionCompletedPatchedRef.current = false;
   }, [analysisSessionId]);
 
@@ -603,31 +609,39 @@ const AnalyzePage = () => {
     });
 
     const persistPly = async (idx) => {
-      if (persistInFlightRef.current.has(idx) || persistedPliesRef.current.has(idx)) return;
+      if (persistInFlightRef.current.has(idx)) return;
       const a = analysis[idx];
       if (!a || (!a.score && !a.error)) return;
 
+      const rowCells = buildExportRowAtIndex(idx);
+      if (!rowCells || rowCells.length !== ANALYSIS_ROW_CELL_KEYS.length) {
+        console.warn('[persist] bad row length', idx, rowCells?.length);
+        return;
+      }
+
+      const payload = { ply_index: idx };
+      ANALYSIS_ROW_CELL_KEYS.forEach((key, i) => {
+        const cell = rowCells[i];
+        payload[key] = cell != null ? String(cell) : '';
+      });
+      payload.stockfish_json = JSON.stringify(a);
+      payload.pipeline_json = JSON.stringify(pipelineData[idx] ?? null);
+      payload.ml_inputs_json = JSON.stringify(mlInputs[idx] ?? null);
+      payload.ml_predictions_json = JSON.stringify(mlOutputs[idx] ?? null);
+
+      const payloadStr = JSON.stringify(payload);
+      if (lastPersistedDataRef.current[idx] === payloadStr) return;
+
       persistInFlightRef.current.add(idx);
       try {
-        const rowCells = buildExportRowAtIndex(idx);
-        if (!rowCells || rowCells.length !== ANALYSIS_ROW_CELL_KEYS.length) {
-          console.warn('[persist] bad row length', idx, rowCells?.length);
-          return;
-        }
-        const payload = { ply_index: idx };
-        ANALYSIS_ROW_CELL_KEYS.forEach((key, i) => {
-          const cell = rowCells[i];
-          payload[key] = cell != null ? String(cell) : '';
-        });
-        payload.stockfish_json = JSON.stringify(a);
-        payload.pipeline_json = JSON.stringify(pipelineData[idx] ?? null);
-
         const res = await fetch(`${API_BASE}/api/sessions/${analysisSessionId}/moves`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: payloadStr,
         });
         if (!res.ok) throw new Error(await res.text());
+        
+        lastPersistedDataRef.current[idx] = payloadStr;
         persistedPliesRef.current.add(idx);
 
         const analyzedCount = timeline.filter((_, i) => {
@@ -1112,6 +1126,7 @@ const AnalyzePage = () => {
       }}
       behavioralInsights={behavioralInsights}
       behaviorScores={behaviorScores}
+      analysisProgress={analysisProgress}
     />
   );
 

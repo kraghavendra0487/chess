@@ -161,6 +161,13 @@ function migrateAddMLColumns() {
 
 migrateAddMLColumns();
 
+function migrateCreateBehavioralStoriesTable() {
+  const schemaPath = path.join(__dirname, 'schema.sql');
+  db.exec(fs.readFileSync(schemaPath, 'utf8'));
+}
+
+migrateCreateBehavioralStoriesTable();
+
 function touchSessionUpdatedAt(sessionId) {
   db.prepare(
     `UPDATE analysis_sessions SET updated_at = datetime('now') WHERE id = ?`

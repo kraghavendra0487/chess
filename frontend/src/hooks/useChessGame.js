@@ -850,35 +850,6 @@ export const useChessGame = (options = {}) => {
             });
 
             mlProcessedIndicesRef.current.add(idx);
-
-            // Persistent Save to Database
-            if (analysisSessionId) {
-              try {
-                const body = {
-                  ply_index: idx,
-                  fen: tRow.fen || positionToFEN(tRow.position, tRow.turn, tRow.castling, tRow.enPassantTarget),
-                  stockfish_json: aData,
-                  pipeline_json: pData,
-                  ml_inputs_json: mlData.inputs,
-                  ml_predictions_json: mlData.predictions,
-                  move_sequence: tRow.move || '',
-                  turn: tRow.turn,
-                  line_1_sequence: aData.lines?.[0]?.pv || '',
-                  move_number: moveNumber,
-                  san_move: tRow.san || '',
-                  uci_move: tRow.uci || '',
-                  clock: history[idx - 1]?.clock || null,
-                };
-
-                await fetch(`${API_BASE}/api/sessions/${analysisSessionId}/moves`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(body),
-                });
-              } catch (saveErr) {
-                console.warn('Persistent save failed', saveErr);
-              }
-            }
           } else {
             console.error('ML API Error response:', mlData.error);
             // Mark as failed to stop loading state

@@ -98,6 +98,34 @@ const LeftSidebar = ({
     }
   };
 
+  const overviewStats = useMemo(() => {
+    const stats = {
+      w: { brilliant: 0, great: 0, best: 0, excellent: 0, good: 0, book: 0, inaccuracy: 0, mistake: 0, blunder: 0, missed: 0 },
+      b: { brilliant: 0, great: 0, best: 0, excellent: 0, good: 0, book: 0, inaccuracy: 0, mistake: 0, blunder: 0, missed: 0 }
+    };
+
+    moveClassifications.forEach((cls, i) => {
+      if (!cls) return;
+      const color = i % 2 === 0 ? 'w' : 'b';
+      const c = cls.toLowerCase();
+      if (stats[color].hasOwnProperty(c)) {
+        stats[color][c]++;
+      }
+    });
+
+    return stats;
+  }, [moveClassifications]);
+
+  const STAT_ROWS = [
+    { key: 'best', label: 'Best Move' },
+    { key: 'excellent', label: 'Excellent' },
+    { key: 'good', label: 'Good' },
+    { key: 'book', label: 'Book' },
+    { key: 'inaccuracy', label: 'Inaccuracy' },
+    { key: 'mistake', label: 'Mistake' },
+    { key: 'blunder', label: 'Blunder' },
+  ];
+
   return (
     <>
       <style>{`
@@ -212,83 +240,35 @@ const LeftSidebar = ({
         className="bg-slate-900 border border-slate-800 rounded-2xl flex flex-col shadow-sm shrink-0 overflow-hidden"
         style={{ height: `${(boardWidth / 2) + 24}px` }}
       >
-        <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-800/50 shrink-0">
-          <h2 className="font-bold text-[10px] uppercase tracking-widest text-slate-400 flex items-center gap-2">
-            <span className="text-indigo-400">🤖</span> Pipeline Predictions
-            {mlLoading && (
-              <span className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-pulse"></span>
-            )}
-          </h2>
-          <i className="fas fa-robot text-slate-600 text-xs"></i>
-        </div>
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
-          {mlOutputs && !mlOutputs.error ? (
-            <div className="divide-y divide-slate-800">
-              {Object.entries(mlOutputs)
-                .filter(([name]) => name === 'pipeline1') // Keep only the first model
-                .map(([name, pred]) => {
-                const colors = getClass8ColorClasses(pred.class8);
-                return (
-                  <div key={name} className="p-3 hover:bg-slate-800/30 transition-colors flex flex-col gap-2">
-                    <div className="flex justify-between items-center gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[10px] font-bold text-slate-200 uppercase tracking-tight whitespace-nowrap shrink-0">
-                          {name.replace('pipeline', 'Model ')}
-                        </span>
-                        <span className="text-[8px] font-medium text-slate-500 uppercase tracking-tighter truncate">
-                          {name === 'pipeline1' ? 'XGBoost + Random Forest' : 
-                           name === 'pipeline2' ? 'XGBoost → XGBoost' : 
-                           'XGBoost → Gradient Boosting'}
-                        </span>
-                      </div>
-                      <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase shrink-0 ${colors.badge}`}>
-                        {pred.class8 || 'unknown'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-1 flex-1 bg-slate-800 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${colors.bar}`} style={{ width: '100%' }}></div>
-                      </div>
-                      <span className="text-[10px] font-mono font-bold text-slate-100 bg-slate-800 px-2 py-0.5 rounded">
-                        {pred.class3 || '—'}
-                      </span>
-                    </div>
+        <div className="flex-1 overflow-hidden px-6 py-6">
+          <div className="space-y-4">
+            {STAT_ROWS.map((row) => (
+              <div key={row.key} className="grid grid-cols-[20px_1fr_20px] gap-4 items-center group">
+                <span className={`text-[12px] font-bold text-left transition-colors ${overviewStats.w[row.key] > 0 ? 'text-slate-100' : 'text-slate-700'}`}>
+                  {overviewStats.w[row.key]}
+                </span>
+                
+                <div className="flex items-center gap-3 justify-start min-w-0">
+                  <div className="w-6 flex justify-center shrink-0">
+                    <MoveClassIcon moveClass={row.key} />
                   </div>
-                );
-              })}
-              {/* Other models are commented out as requested
-              {Object.entries(mlOutputs)
-                .filter(([name]) => name !== 'pipeline1')
-                .map(([name, pred]) => (
-                  // ... rendering for other models ...
-                ))
-              */}
-            </div>
-          ) : mlOutputs?.error ? (
-            <div className="p-6 text-center text-rose-400 text-[10px] italic">
-              Error: {mlOutputs.error}
-            </div>
-          ) : mlLoading ? (
-            <div className="p-4 space-y-4">
-              {[1].map(i => (
-                <div key={i} className="animate-pulse space-y-2">
-                  <div className="flex justify-between">
-                    <div className="h-2 w-12 bg-slate-800 rounded"></div>
-                    <div className="h-3 w-16 bg-slate-800 rounded-full"></div>
-                  </div>
-                  <div className="h-1.5 w-full bg-slate-800/50 rounded-full"></div>
+                  <span className={`text-[11px] font-bold transition-colors truncate ${overviewStats.w[row.key] > 0 || overviewStats.b[row.key] > 0 ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {row.label}
+                  </span>
                 </div>
-              ))}
-            </div>
-          ) : isInitialPosition ? (
-            <div className="p-8 text-center text-indigo-400/70 font-medium italic text-[10px] leading-relaxed">
-              Predictions appear after the first move.
-            </div>
-          ) : (
-            <div className="p-8 text-center text-slate-600 italic text-[10px]">
-              Select a move to see predictions.
-            </div>
-          )}
+
+                <span className={`text-[12px] font-bold text-right transition-colors ${overviewStats.b[row.key] > 0 ? 'text-slate-100' : 'text-slate-700'}`}>
+                  {overviewStats.b[row.key]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Footer for Player labels */}
+        <div className="px-6 py-3 bg-slate-800/20 border-t border-slate-800/50 flex justify-between items-center shrink-0">
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">White</span>
+          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Black</span>
         </div>
       </div>
     </aside>

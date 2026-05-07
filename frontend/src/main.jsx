@@ -4,7 +4,6 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import '@fontsource/inter'
 import '@fortawesome/fontawesome-free/css/all.min.css'
 import './index.css'
-import ChessBoardPage from './pages/ChessBoardPage.jsx'
 import Layout from './Layout.jsx'
 import AnalyzePage from './Analyze.jsx'
 import AnalysisHistoryPage from './pages/AnalysisHistoryPage.jsx'
@@ -16,7 +15,7 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <ChessBoardPage />
+        element: <AnalyzePage />
       },
       {
         path: 'analyze',

@@ -1,0 +1,101 @@
+ID,Title,Moral,Patience,Consistency,Adaptability,Focus,Mental Stability,Time Management,Creativity,Aggression
+1,The Honest Woodcutter,Honesty is rewarded,60,50,30,70,80,40,20,0
+2,The Boy Who Cried Wolf,Don't lie,30,20,20,40,30,20,10,10
+3,The Thirsty Crow,Use intelligence to solve problems,50,60,70,80,60,50,90,0
+4,The Greedy Dog,Greed leads to loss,20,20,10,30,20,10,10,30
+5,The Lion and the Mouse,Kindness is never wasted,40,40,50,50,70,30,20,10
+6,The Ant and the Grasshopper,Work hard for the future,70,90,30,80,60,90,20,0
+7,The Golden Egg,Don't be greedy,30,40,20,50,40,60,10,20
+8,The Clever Fox,Think before you act,50,40,80,70,60,40,85,20
+9,The Lazy Farmer,Hard work brings success,60,80,30,70,50,80,20,0
+10,The Talking Tree,Respect nature,50,40,40,50,70,30,30,0
+11,The Brave Little Rabbit,Courage wins,40,50,60,70,60,30,40,50
+12,The Magic Pot,Be content with what you have,70,50,30,40,80,30,40,0
+13,The Kind Elephant,Help others,50,60,40,50,80,30,20,0
+14,The Lost Puppy,Never give up,80,70,60,80,70,40,30,10
+15,The Honest Shopkeeper,Truth builds trust,60,80,30,70,80,60,20,0
+16,The Broken Toy,Care for your things,50,60,30,60,60,40,20,0
+17,The Friendly Dragon,Don't judge by appearance,40,40,70,50,70,20,50,10
+18,The Little Star,Believe in yourself,60,70,50,80,80,40,60,0
+19,The Singing Bird,Use your talent wisely,50,70,40,80,70,60,90,0
+20,The Helpful Wind,Small help matters,40,50,60,50,70,30,40,0
+21,The Clever Monkey,Intelligence beats strength,50,60,70,80,60,40,85,10
+22,The Naughty Cat,Learn from mistakes,40,50,60,60,50,30,40,20
+23,The Wise Owl,Think before speaking,60,60,50,70,80,40,30,0
+24,The Angry Lion,Control your anger,30,40,30,50,20,30,20,80
+25,The Generous King,Sharing brings happiness,50,60,40,50,80,30,20,0
+26,The Lost Treasure,Honesty is best,60,50,30,60,70,40,30,0
+27,The Silent River,Stay calm,80,50,40,60,90,30,20,0
+28,The Busy Bee,Hard work pays off,70,90,30,80,60,80,20,0
+29,The Broken Bridge,Teamwork matters,60,70,60,70,70,50,40,0
+30,The Happy Farmer,Be grateful,60,60,30,50,80,40,20,0
+31,The Brave Turtle,Slow and steady wins,90,80,30,70,80,60,20,0
+32,The Talking Parrot,Speak wisely,60,50,40,70,80,30,30,0
+33,The Lost Key,Don't give up easily,80,70,60,80,70,40,30,10
+34,The Golden Fish,Respect life,50,50,40,50,80,30,30,0
+35,The Clever Girl,Smart thinking solves problems,50,60,70,80,70,50,85,0
+36,The Lazy Cat,Laziness leads to failure,40,20,20,30,30,20,10,0
+37,The Kind Neighbor,Help your community,50,60,50,60,80,40,30,0
+38,The Magic Shoes,Believe in yourself,60,70,50,80,80,40,60,0
+39,The Lost Hat,Take responsibility,50,60,40,60,60,40,30,0
+40,The Friendly Tree,Nature gives us life,60,50,40,50,80,30,30,0
+41,The Honest Child,Truth always wins,60,70,30,70,80,40,20,0
+42,The Angry Storm,Stay calm in problems,80,50,50,60,90,40,20,0
+43,The Brave Soldier,Courage matters,50,60,50,70,70,40,30,60
+44,The Helpful Robot,Technology should help others,40,60,60,60,70,50,50,0
+45,The Clever Farmer,Use your brain,50,60,70,70,60,50,80,0
+46,The Lost Bird,Home is important,60,50,40,60,70,40,30,0
+47,The Greedy King,Greed destroys happiness,30,30,20,40,30,20,10,40
+48,The Kind Teacher,Knowledge is powerful,60,70,40,80,80,60,50,0
+49,The Silent Friend,Listen more,70,60,50,60,80,40,30,0
+50,The Magic Book,Learning is valuable,60,70,50,80,80,60,70,0
+51,The Little Hero,Anyone can be brave,50,60,50,70,70,40,40,50
+52,The Broken Clock,Time is important,60,80,40,70,60,90,20,0
+53,The Clever Thief,Wrong actions fail,40,40,60,60,50,30,60,50
+54,The Honest Judge,Justice matters,60,80,40,80,90,60,30,0
+55,The Lost Balloon,Enjoy small moments,70,50,40,50,80,30,40,0
+56,The Happy Dog,Loyalty is important,60,70,40,60,80,40,20,0
+57,The Angry Child,Control emotions,40,40,40,50,20,30,20,80
+58,The Kind Stranger,Help others,50,60,50,60,80,40,30,0
+59,The Magic Garden,Care for nature,60,60,40,50,80,40,50,0
+60,The Busy Ant,Hard work wins,70,90,30,80,60,90,20,0
+61,The Clever Student,Smart work matters,50,80,60,80,70,80,70,0
+62,The Lazy Prince,Effort brings success,50,30,30,40,40,30,20,0
+63,The Brave Girl,Believe in yourself,50,60,60,70,70,40,40,50
+64,The Talking River,Respect nature,60,50,50,50,80,40,30,0
+65,The Honest Farmer,Truth builds respect,60,70,40,70,80,60,20,0
+66,The Lost Path,Stay focused,70,70,50,90,70,60,40,0
+67,The Golden Crown,Power needs responsibility,60,80,40,70,90,60,30,10
+68,The Friendly Monster,Don't judge others,40,40,70,50,70,30,50,10
+69,The Broken Ladder,Try again,80,80,60,80,70,60,40,0
+70,The Happy Family,Love matters,60,70,40,60,90,50,30,0
+71,The Clever Doctor,Knowledge saves lives,60,80,60,80,90,80,70,0
+72,The Angry Bird,Stay calm,70,50,50,60,20,40,30,80
+73,The Kind King,Leadership needs kindness,60,80,50,70,90,60,30,0
+74,The Lost Shoe,Stay organized,60,70,40,70,60,80,30,0
+75,The Magic Lamp,Wishes have consequences,50,50,60,60,70,40,70,20
+76,The Honest Worker,Integrity matters,60,80,40,70,80,70,20,0
+77,The Brave Knight,Face fears,50,60,60,70,70,40,40,60
+78,The Silent Forest,Nature teaches peace,80,50,40,60,90,40,40,0
+79,The Clever Sister,Intelligence solves problems,50,70,70,80,70,60,80,0
+80,The Lazy Boy,Hard work is key,50,30,30,40,40,30,20,0
+81,The Kind Friend,Friendship matters,60,70,50,60,90,50,30,0
+82,The Golden Leaf,Value small things,70,60,40,50,80,40,40,0
+83,The Lost Ring,Responsibility is important,60,70,40,70,70,60,30,0
+84,The Clever Boy,Think smart,50,70,70,80,70,60,80,0
+85,The Angry Giant,Control anger,40,40,40,50,20,30,20,90
+86,The Helpful Fairy,Kindness spreads,60,60,50,60,80,40,60,0
+87,The Broken Toy Car,Care for things,50,60,40,60,60,40,30,0
+88,The Honest Leader,Truth builds trust,60,80,40,70,90,60,30,0
+89,The Magic Tree,Nature is valuable,60,60,50,50,80,40,50,0
+90,The Brave Explorer,Curiosity leads to discovery,50,60,70,80,70,60,90,40
+91,The Happy Village,Unity brings joy,60,70,50,60,90,50,40,0
+92,The Clever Builder,Plan before acting,60,80,60,90,70,90,70,0
+93,The Lost Star,Hope always shines,80,60,50,60,90,40,50,0
+94,The Kind Nurse,Caring matters,60,70,50,60,90,60,40,0
+95,The Angry Farmer,Patience is key,90,60,40,60,40,50,30,70
+96,The Magic River,Respect resources,60,60,50,50,80,50,60,0
+97,The Honest Friend,Truth builds friendship,60,70,50,60,90,50,30,0
+98,The Brave Puppy,Courage comes in all sizes,50,60,60,70,70,40,40,50
+99,The Clever Artist,Creativity matters,50,60,60,70,70,50,95,0
+100,The Golden Lesson,Every mistake teaches something,70,70,60,80,80,60,60,0

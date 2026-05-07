@@ -256,9 +256,25 @@ export function getPlayedMoveClassAndStandingAtNavIndex(analysis, timeline, hist
     ? (prefersLowerEval ? Math.min(...finiteRightEvals) : Math.max(...finiteRightEvals))
     : null;
 
-  const classifyByDelta = (delta) => {
+  const classifyByDelta = (delta, l) => {
     if (!Number.isFinite(delta)) return null;
-    if (delta <= 0) return 'best';
+
+    // Basic heuristic for Great/Brilliant if it's the best move
+    if (delta <= 0) {
+      // If the engine eval is significantly positive and it's the best move
+      const absoluteEval = Math.abs(l.whiteEval || 0);
+      if (absoluteEval > 4.0 && delta < -0.1) return 'brilliant';
+      if (absoluteEval > 2.0 && delta < -0.05) return 'great';
+      return 'best';
+    }
+
+    // Missed Win: Significant drop from a winning position
+    if (delta > 2.0 && l.whiteEval !== null) {
+      // If we were winning (>2.0) but dropped significantly
+      // (This is a simplification)
+      if (Math.abs(l.whiteEval) > 2.0) return 'missed';
+    }
+
     if (delta < 0.2) return 'excellent';
     if (delta < 0.5) return 'good';
     if (delta < 1.0) return 'inaccuracy';
@@ -271,13 +287,13 @@ export function getPlayedMoveClassAndStandingAtNavIndex(analysis, timeline, hist
     const deltaFromBest = Number.isFinite(lineClassificationEval) && Number.isFinite(bestRightEval)
       ? (prefersLowerEval ? (lineClassificationEval - bestRightEval) : (bestRightEval - lineClassificationEval))
       : null;
-    const moveClass = classifyByDelta(deltaFromBest);
+    const moveClass = classifyByDelta(deltaFromBest, l);
     return {
       ...l,
       rank: i + 1,
       deltaFromBest,
       moveClass,
-      isBestMove: moveClass === 'best',
+      isBestMove: moveClass === 'best' || moveClass === 'brilliant' || moveClass === 'great',
     };
   });
 

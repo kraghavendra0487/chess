@@ -51,10 +51,6 @@ const SideNavBar = ({ mobileOpen, onMobileClose, collapsed, onToggleCollapsed })
         </button>
       </div>
       <nav className="flex flex-col gap-1 flex-1 overflow-y-auto custom-scrollbar pb-safe">
-        <NavLink to="/" end className={linkClass} onClick={closeOnNavigate} title="Chess Board">
-          <i className="fas fa-chess-board w-5 text-center shrink-0" aria-hidden />
-          <span className={collapsed ? 'lg:hidden' : ''}>Chess Board</span>
-        </NavLink>
         <NavLink to="/analyze" className={linkClass} onClick={closeOnNavigate} title="Analyze">
           <i className="fas fa-chart-pie w-5 text-center shrink-0" aria-hidden />
           <span className={collapsed ? 'lg:hidden' : ''}>Analyze</span>
